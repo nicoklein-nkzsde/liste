@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Liste</title>
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0b0c" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Liste">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root {
+  --bg: #ffffff;
+  --text: #0b0b0c;
+  --muted: #8a8a8e;
+  --line: #ececee;
+  --soft: #f4f4f6;
+  --accent: #ff5a1f;
+  --red: #e5372b;
+  --green: #22a35a;
+  --sheet: #ffffff;
+  --shadow: 0 10px 40px rgba(0,0,0,.12);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0b0c;
+    --text: #f5f5f7;
+    --muted: #7c7c82;
+    --line: #1f1f22;
+    --soft: #18181b;
+    --sheet: #161618;
+    --shadow: 0 10px 40px rgba(0,0,0,.6);
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body {
+  font-family: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+input { font: inherit; color: inherit; }
+
+.wrap { max-width: 680px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 20px) 20px calc(env(safe-area-inset-bottom) + 120px); }
+
+header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+header h1 { margin: 0; font-size: 40px; font-weight: 900; letter-spacing: -.02em; line-height: 1; }
+header .sub { color: var(--muted); font-weight: 700; font-size: 15px; margin-top: 6px; }
+.head-right { display: flex; align-items: center; gap: 6px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); opacity: .6; }
+.dot.ok { background: var(--green); opacity: 1; }
+.dot.wait { background: var(--accent); opacity: 1; }
+.dot.err { background: var(--red); opacity: 1; }
+.icon-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--muted); }
+.icon-btn:active { background: var(--soft); }
+
+.group-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 26px 0 4px; }
+.group-title.red { color: var(--red); }
+
+ul { list-style: none; margin: 0; padding: 0; }
+li.task { display: flex; align-items: flex-start; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.check {
+  flex: none; width: 32px; height: 32px; border-radius: 50%;
+  border: 3px solid var(--muted); margin-top: 1px; display: grid; place-items: center;
+  transition: transform .15s ease, background .15s ease, border-color .15s ease;
+}
+.check:active { transform: scale(.88); }
+.check svg { opacity: 0; transition: opacity .15s; }
+li.done .check { background: var(--accent); border-color: var(--accent); }
+li.done .check svg { opacity: 1; }
+.body { flex: 1; min-width: 0; cursor: pointer; padding-top: 1px; }
+.text { font-size: 24px; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; word-wrap: break-word; }
+li.done .text { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 3px; }
+.meta { margin-top: 4px; font-size: 15px; font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.meta.today { color: var(--accent); }
+.meta.over { color: var(--red); }
+.meta .cal { opacity: .9; }
+li.task.pop .check { animation: pop .3s ease; }
+@keyframes pop { 50% { transform: scale(1.2); } }
+
+.empty { text-align: center; color: var(--muted); font-weight: 800; font-size: 22px; padding: 70px 0 30px; }
+.empty small { display: block; font-size: 15px; font-weight: 600; margin-top: 8px; }
+
+.done-toggle { margin-top: 30px; display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-weight: 800; font-size: 16px; width: 100%; padding: 8px 0; }
+.done-toggle .clear { font-size: 14px; color: var(--red); font-weight: 700; padding: 6px 0 6px 12px; }
+
+/* Eingabe unten */
+.bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  padding: 10px 14px calc(env(safe-area-inset-bottom) + 12px);
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+}
+.bar-inner { max-width: 680px; margin: 0 auto; }
+.chip-row { display: flex; gap: 8px; margin: 0 6px 8px; min-height: 0; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--accent); color: #fff; font-weight: 800; font-size: 14px; padding: 6px 10px 6px 12px; border-radius: 999px; }
+.chip .x { opacity: .8; font-size: 16px; line-height: 1; }
+.field { display: flex; align-items: center; gap: 8px; background: var(--soft); border-radius: 20px; padding: 6px 6px 6px 18px; box-shadow: var(--shadow); }
+.field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 20px; font-weight: 700; padding: 10px 0; }
+.field input::placeholder { color: var(--muted); }
+.add { width: 46px; height: 46px; border-radius: 15px; background: var(--accent); color: #fff; display: grid; place-items: center; flex: none; }
+.add:disabled { opacity: .35; }
+.add:active { transform: scale(.94); }
+.cal-btn { width: 40px; height: 46px; display: grid; place-items: center; color: var(--muted); flex: none; }
+
+/* Sheet */
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 20; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.scrim.open { opacity: 1; pointer-events: auto; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; max-width: 680px; margin: 0 auto;
+  background: var(--sheet); border-radius: 26px 26px 0 0; box-shadow: var(--shadow);
+  padding: 22px 20px calc(env(safe-area-inset-bottom) + 20px);
+  transform: translateY(105%); transition: transform .28s cubic-bezier(.2,.8,.2,1);
+}
+.sheet.open { transform: none; }
+.sheet h2 { margin: 0 0 14px; font-size: 22px; font-weight: 900; }
+.sheet label { display: block; font-size: 13px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 14px 0 6px; }
+.sheet input[type=text], .sheet input[type=date], .sheet input[type=time], .sheet input[type=url], .sheet input[type=password] {
+  width: 100%; border: 0; outline: 0; background: var(--soft); border-radius: 14px; padding: 14px 16px; font-size: 19px; font-weight: 700; min-height: 52px;
+  -webkit-appearance: none; appearance: none;
+}
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.quick { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.quick button { background: var(--soft); border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 15px; }
+.quick button.on { background: var(--accent); color: #fff; }
+.actions { display: flex; gap: 10px; margin-top: 22px; }
+.btn { flex: 1; border-radius: 16px; padding: 16px; font-weight: 900; font-size: 18px; background: var(--soft); text-align: center; }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.danger { color: var(--red); flex: 0 0 auto; padding: 16px 20px; }
+.hint { color: var(--muted); font-size: 14px; font-weight: 600; line-height: 1.45; margin-top: 12px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 100px); z-index: 30;
+  transform: translate(-50%, 20px); opacity: 0; pointer-events: none; transition: all .2s;
+  background: var(--text); color: var(--bg); border-radius: 14px; padding: 12px 16px; font-weight: 800; font-size: 15px;
+  display: flex; gap: 16px; align-items: center; white-space: nowrap; max-width: calc(100vw - 32px);
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast button { color: var(--accent); font-weight: 900; }
+
+@media (min-width: 700px) {
+  header h1 { font-size: 48px; }
+  .text { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1 id="title">Liste</h1>
+      <div class="sub" id="sub"></div>
+    </div>
+    <div class="head-right">
+      <span class="dot" id="dot" title="Sync"></span>
+      <button class="icon-btn" id="settingsBtn" aria-label="Einstellungen">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="list"></main>
+</div>
+
+<div class="bar">
+  <div class="bar-inner">
+    <div class="chip-row" id="chipRow"></div>
+    <form class="field" id="addForm" autocomplete="off">
+      <input id="newText" type="text" placeholder="Neue Aufgabe …" enterkeyhint="done" aria-label="Neue Aufgabe">
+      <button type="button" class="cal-btn" id="calBtn" aria-label="Datum wählen">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+      </button>
+      <button type="submit" class="add" id="addBtn" aria-label="Hinzufügen" disabled>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<!-- Aufgabe bearbeiten -->
+<div class="sheet" id="editSheet" role="dialog" aria-modal="true">
+  <h2 id="editTitle">Aufgabe</h2>
+  <input type="text" id="eText" placeholder="Was ist zu tun?">
+  <label>Datum &amp; Uhrzeit → Google Kalender</label>
+  <div class="row2">
+    <input type="date" id="eDate">
+    <input type="time" id="eTime">
+  </div>
+  <div class="quick" id="eQuick">
+    <button type="button" data-q="0">Heute</button>
+    <button type="button" data-q="1">Morgen</button>
+    <button type="button" data-q="7">In 1 Woche</button>
+    <button type="button" data-q="none">Kein Datum</button>
+  </div>
+  <div class="actions">
+    <button class="btn danger" id="eDelete">Löschen</button>
+    <button class="btn" id="eCancel">Abbrechen</button>
+    <button class="btn primary" id="eSave">Fertig</button>
+  </div>
+</div>
+
+<!-- Einstellungen -->
+<div class="sheet" id="setSheet" role="dialog" aria-modal="true">
+  <h2>Verbindung</h2>
+  <label>Server-Adresse (Apps Script)</label>
+  <input type="url" id="sUrl" placeholder="https://script.google.com/macros/s/…/exec">
+  <label>Schlüssel</label>
+  <input type="password" id="sToken" placeholder="Geheimer Schlüssel">
+  <p class="hint" id="sInfo">Ohne Verbindung bleibt die Liste nur auf diesem Gerät. Mit Verbindung ist sie auf Handy und Mac gleich, und Aufgaben mit Datum landen automatisch in deinem Google Kalender.</p>
+  <div class="actions">
+    <button class="btn" id="sCancel">Schließen</button>
+    <button class="btn primary" id="sSave">Speichern</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastText"></span><button id="toastBtn"></button></div>
+
+<script>
+'use strict';
+
+/* ---------- Speicher ---------- */
+const KEY = 'liste.v1';
+const S = load();
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && Array.isArray(s.tasks)) return Object.assign({ tasks: [], queue: [], url: '', token: '', showDone: false }, s);
+  } catch (e) {}
+  return { tasks: [], queue: [], url: '', token: '', showDone: false };
+}
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+// Einmal-Link zum Verbinden: …/#connect=<url>|<token>
+(function readConnectLink() {
+  const m = location.hash.match(/^#connect=(.+)$/);
+  if (!m) return;
+  const [url, token] = decodeURIComponent(m[1]).split('|');
+  if (url && token) { S.url = url; S.token = token; persist(); }
+  history.replaceState(null, '', location.pathname + location.search);
+})();
+
+/* ---------- Datum-Helfer ---------- */
+const pad = n => String(n).padStart(2, '0');
+const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const fromIso = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const dayDiff = s => Math.round((fromIso(s) - today()) / 864e5);
+const WD = ['sonntag', 'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag'];
+const WD_SHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const MON = ['Jan', 'Feb', 'März', 'Apr', 'Mai', 'Juni', 'Juli', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+
+function dateLabel(date, time) {
+  const n = dayDiff(date), d = fromIso(date);
+  let s;
+  if (n === 0) s = 'Heute';
+  else if (n === 1) s = 'Morgen';
+  else if (n === -1) s = 'Gestern';
+  else if (n > 1 && n < 7) s = WD[d.getDay()][0].toUpperCase() + WD[d.getDay()].slice(1);
+  else s = WD_SHORT[d.getDay()] + ', ' + d.getDate() + '. ' + MON[d.getMonth()];
+  return time ? s + ' · ' + time : s;
+}
+
+/* ---------- Text verstehen: „Zahnarzt morgen 14 Uhr" ---------- */
+function parse(input) {
+  let s = ' ' + input + ' ';
+  let date = null, time = null;
+  const take = (re, fn) => {
+    const m = s.match(re);
+    if (m && fn(m) !== false) { s = s.replace(m[0], ' '); return true; }
+    return false;
+  };
+  const setTime = m => {
+    const h = +m[1], mi = m[2] ? +m[2] : 0;
+    if (h > 23 || mi > 59) return false;
+    time = pad(h) + ':' + pad(mi);
+  };
+  take(/\s(?:um\s+)?(\d{1,2})(?:[:.](\d{2}))?\s*uhr(?=\s)/iu, setTime) ||
+    take(/\sum\s+(\d{1,2})(?:[:.](\d{2}))?(?=\s)/iu, setTime) ||
+    take(/\s(\d{1,2}):(\d{2})(?=\s)/u, setTime);
+
+  const t0 = today();
+  take(/\s(?:am\s+)?(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})?(?=\s)/iu, m => {
+    const dd = +m[1], mm = +m[2];
+    if (dd < 1 || dd > 31 || mm < 1 || mm > 12) return false;
+    let y = m[3] ? +m[3] : t0.getFullYear();
+    if (y < 100) y += 2000;
+    let d = new Date(y, mm - 1, dd);
+    if (!m[3] && d < t0) d = new Date(y + 1, mm - 1, dd);
+    date = iso(d);
+  }) ||
+  take(/\s(?:ü|ue)bermorgen(?=\s)/iu, () => { date = iso(addDays(t0, 2)); }) ||
+  take(/\smorgen(?=\s)/iu, () => { date = iso(addDays(t0, 1)); }) ||
+  take(/\sheute(?:\s+abend)?(?=\s)/iu, () => { date = iso(t0); }) ||
+  take(/\sin\s+(\d+)\s+tag(?:en)?(?=\s)/iu, m => { date = iso(addDays(t0, +m[1])); }) ||
+  take(/\sin\s+(\d+|einer)\s+woche(?:n)?(?=\s)/iu, m => { date = iso(addDays(t0, 7 * (m[1] === 'einer' ? 1 : +m[1]))); }) ||
+  take(/\sn(?:ä|ae)chste\s+woche(?=\s)/iu, () => { const w = t0.getDay(); date = iso(addDays(t0, ((8 - w) % 7) || 7)); }) ||
+  take(new RegExp('\\s(?:am\\s+|n(?:ä|ae)chsten\\s+)?(' + WD.join('|') + ')(?=\\s)', 'iu'), m => {
+    const target = WD.indexOf(m[1].toLowerCase());
+    let diff = (target - t0.getDay() + 7) % 7;
+    if (diff === 0) diff = 7;
+    date = iso(addDays(t0, diff));
+  });
+
+  if (time && !date) {
+    const now = new Date(), [h, mi] = time.split(':').map(Number);
+    date = (h * 60 + mi <= now.getHours() * 60 + now.getMinutes()) ? iso(addDays(t0, 1)) : iso(t0);
+  }
+  let text = s.replace(/\s+(am|um)\s*$/i, ' ').replace(/\s+/g, ' ').trim();
+  if (!text) text = input.trim();
+  return { text, date, time };
+}
+
+/* ---------- Änderungen ---------- */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+function applyOp(tasks, o) {
+  if (o.op === 'upsert') {
+    const i = tasks.findIndex(t => t.id === o.task.id);
+    if (i < 0) tasks.push(Object.assign({}, o.task));
+    else if ((tasks[i].updated || 0) <= o.task.updated) tasks[i] = Object.assign({}, tasks[i], o.task);
+  } else if (o.op === 'delete') {
+    const i = tasks.findIndex(t => t.id === o.id);
+    if (i >= 0) tasks.splice(i, 1);
+  } else if (o.op === 'clearDone') {
+    for (let i = tasks.length - 1; i >= 0; i--) if (tasks[i].done) tasks.splice(i, 1);
+  }
+}
+
+function commit(o) {
+  applyOp(S.tasks, o);
+  if (S.url) S.queue.push(o);
+  persist();
+  render();
+  flush();
+}
+
+function upsert(t) {
+  t.updated = Date.now();
+  commit({ op: 'upsert', task: t });
+}
+
+function addTask(text, date, time) {
+  const now = Date.now();
+  upsert({ id: uid(), text, done: false, date: date || '', time: time || '', created: now, doneAt: 0 });
+}
+
+function toggle(id) {
+  const t = S.tasks.find(x => x.id === id);
+  if (!t) return;
+  const before = Object.assign({}, t);
+  const next = Object.assign({}, t, { done: !t.done, doneAt: t.done ? 0 : Date.now() });
+  delete next.inCal;
+  upsert(next);
+  if (next.done) {
+    vibrate();
+    toast('Erledigt', 'Rückgängig', () => { const b = Object.assign({}, before); delete b.inCal; upsert(b); });
+  }
+}
+
+/* ---------- Sync mit Google (Apps Script) ---------- */
+let syncing = false, lastErr = '';
+async function flush() {
+  if (!S.url || !S.token) { setDot(''); return; }
+  if (syncing) return;
+  syncing = true;
+  setDot('wait');
+  const sending = S.queue.slice();
+  try {
+    const res = await fetch(S.url, {
+      method: 'POST',
+      body: JSON.stringify({ token: S.token, ops: sending })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error === 'token' ? 'Schlüssel falsch' : (data.error || 'Fehler'));
+    S.queue = S.queue.slice(sending.length);
+    S.tasks = data.tasks;
+    S.queue.forEach(o => applyOp(S.tasks, o));
+    persist();
+    render();
+    lastErr = '';
+    setDot(S.queue.length ? 'wait' : 'ok');
+    if (data.errors && data.errors.length) toast('Kalender: ' + data.errors[0]);
+  } catch (e) {
+    lastErr = e.message || 'offline';
+    setDot('err');
+  } finally {
+    syncing = false;
+    if (S.queue.length && !lastErr) flush();
+  }
+}
+function setDot(state) {
+  const d = document.getElementById('dot');
+  d.className = 'dot ' + state;
+  d.title = !S.url ? 'Nur auf diesem Gerät' : state === 'ok' ? 'Synchron' : state === 'err' ? 'Nicht verbunden: ' + lastErr : 'Synchronisiere …';
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) flush(); });
+window.addEventListener('focus', () => flush());
+window.addEventListener('online', () => flush());
+setInterval(() => { if (!document.hidden) flush(); }, 20000);
+
+/* ---------- Anzeige ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const CHECK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const CAL = '<svg class="cal" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+let popId = null;
+
+function item(t) {
+  let meta = '';
+  if (t.date) {
+    const n = dayDiff(t.date);
+    const cls = t.done ? '' : n < 0 ? 'over' : n === 0 ? 'today' : '';
+    meta = `<div class="meta ${cls}">${t.inCal ? CAL : ''}${esc(dateLabel(t.date, t.time))}</div>`;
+  }
+  return `<li class="task${t.done ? ' done' : ''}${t.id === popId ? ' pop' : ''}" data-id="${t.id}">
+    <button class="check" data-act="toggle" aria-label="${t.done ? 'Wieder öffnen' : 'Abhaken'}">${CHECK}</button>
+    <div class="body" data-act="edit"><div class="text">${esc(t.text)}</div>${meta}</div>
+  </li>`;
+}
+
+function sortKey(t) { return (t.date || '9999') + ' ' + (t.time || '99:99') + ' ' + String(t.created).padStart(15, '0'); }
+
+function render() {
+  const d = new Date();
+  $('sub').textContent = WD[d.getDay()][0].toUpperCase() + WD[d.getDay()].slice(1) + ', ' + d.getDate() + '. ' + MON[d.getMonth()];
+
+  const open = S.tasks.filter(t => !t.done);
+  const done = S.tasks.filter(t => t.done).sort((a, b) => b.doneAt - a.doneAt);
+  const over = [], now = [], none = [], later = [];
+  open.forEach(t => {
+    if (!t.date) none.push(t);
+    else { const n = dayDiff(t.date); (n < 0 ? over : n === 0 ? now : later).push(t); }
+  });
+  [over, now, later].forEach(g => g.sort((a, b) => sortKey(a) < sortKey(b) ? -1 : 1));
+  none.sort((a, b) => a.created - b.created);
+
+  const groups = [
+    ['Überfällig', over, 'red'],
+    ['Heute', now, ''],
+    ['Aufgaben', none, ''],
+    ['Demnächst', later, '']
+  ].filter(g => g[1].length);
+
+  let html = '';
+  if (!open.length) {
+    html = `<div class="empty">Alles erledigt.<small>Unten eintippen – z. B. „Zahnarzt morgen 14 Uhr"</small></div>`;
+  } else {
+    const showTitles = groups.length > 1 || groups[0][0] !== 'Aufgaben';
+    groups.forEach(([name, list, cls]) => {
+      if (showTitles) html += `<div class="group-title ${cls}">${name}</div>`;
+      html += '<ul>' + list.map(item).join('') + '</ul>';
+    });
+  }
+  if (done.length) {
+    html += `<div class="done-toggle"><button data-act="showDone" style="font-weight:800">${S.showDone ? '▾' : '▸'} Erledigt (${done.length})</button>
+      ${S.showDone ? '<button class="clear" data-act="clearDone">Alle entfernen</button>' : ''}</div>`;
+    if (S.showDone) html += '<ul>' + done.map(item).join('') + '</ul>';
+  }
+  $('list').innerHTML = html;
+  $('title').textContent = open.length ? 'Liste · ' + open.length : 'Liste';
+  document.title = open.length ? `Liste (${open.length})` : 'Liste';
+  popId = null;
+}
+
+$('list').addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const act = el.dataset.act;
+  const li = el.closest('li');
+  if (act === 'toggle') { popId = li.dataset.id; toggle(li.dataset.id); }
+  else if (act === 'edit') openEdit(li.dataset.id);
+  else if (act === 'showDone') { S.showDone = !S.showDone; persist(); render(); }
+  else if (act === 'clearDone') commit({ op: 'clearDone' });
+});
+
+/* ---------- Eingabe ---------- */
+let parsed = null, ignoreParse = false, pickDate = null;
+
+function updateChip() {
+  const v = $('newText').value;
+  $('addBtn').disabled = !v.trim();
+  parsed = v.trim() ? parse(v) : null;
+  const date = pickDate ? pickDate.date : (!ignoreParse && parsed && parsed.date) ? parsed.date : null;
+  const time = pickDate ? pickDate.time : (!ignoreParse && parsed) ? parsed.time : null;
+  $('chipRow').innerHTML = date
+    ? `<button type="button" class="chip" id="chip">${CAL.replace('class="cal"', '')} ${esc(dateLabel(date, time))} <span class="x">×</span></button>`
+    : '';
+  const c = $('chip');
+  if (c) c.onclick = () => { if (pickDate) pickDate = null; else ignoreParse = true; updateChip(); $('newText').focus(); };
+}
+$('newText').addEventListener('input', () => { if (!$('newText').value) ignoreParse = false; updateChip(); });
+
+$('addForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const v = $('newText').value.trim();
+  if (!v) return;
+  let text = v, date = '', time = '';
+  if (pickDate) { text = (ignoreParse ? v : parse(v).text); date = pickDate.date; time = pickDate.time || ''; }
+  else if (!ignoreParse) { const p = parse(v); text = p.text; date = p.date || ''; time = p.time || ''; }
+  addTask(text, date, time);
+  $('newText').value = '';
+  ignoreParse = false; pickDate = null;
+  updateChip();
+  $('newText').focus();
+});
+
+$('calBtn').addEventListener('click', () => openEdit(null));
+
+/* ---------- Bearbeiten ---------- */
+let editId = null;
+function openSheet(id) { $('scrim').classList.add('open'); $(id).classList.add('open'); }
+function closeSheets() { $('scrim').classList.remove('open'); document.querySelectorAll('.sheet').forEach(s => s.classList.remove('open')); }
+$('scrim').addEventListener('click', closeSheets);
+
+function markQuick() {
+  const v = $('eDate').value;
+  document.querySelectorAll('#eQuick button').forEach(b => {
+    const q = b.dataset.q;
+    b.classList.toggle('on', q === 'none' ? !v : v === iso(addDays(today(), +q)));
+  });
+}
+
+function openEdit(id) {
+  editId = id;
+  if (id) {
+    const t = S.tasks.find(x => x.id === id);
+    if (!t) return;
+    $('editTitle').textContent = 'Aufgabe';
+    $('eText').value = t.text;
+    $('eDate').value = t.date || '';
+    $('eTime').value = t.time || '';
+    $('eDelete').style.display = '';
+  } else {
+    // Datum für die neue Aufgabe unten wählen
+    $('editTitle').textContent = 'Datum für neue Aufgabe';
+    const p = $('newText').value.trim() ? parse($('newText').value) : {};
+    $('eText').value = $('newText').value;
+    $('eDate').value = pickDate ? pickDate.date : (!ignoreParse && p.date) || iso(today());
+    $('eTime').value = pickDate ? (pickDate.time || '') : (!ignoreParse && p.time) || '';
+    $('eDelete').style.display = 'none';
+  }
+  markQuick();
+  openSheet('editSheet');
+}
+$('eDate').addEventListener('input', markQuick);
+$('eQuick').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.q === 'none') { $('eDate').value = ''; $('eTime').value = ''; }
+  else $('eDate').value = iso(addDays(today(), +b.dataset.q));
+  markQuick();
+});
+$('eCancel').addEventListener('click', closeSheets);
+$('eSave').addEventListener('click', () => {
+  const text = $('eText').value.trim();
+  const date = $('eDate').value, time = date ? $('eTime').value : '';
+  if (editId) {
+    const t = S.tasks.find(x => x.id === editId);
+    if (t && text) { const n = Object.assign({}, t, { text, date, time }); delete n.inCal; upsert(n); }
+  } else {
+    $('newText').value = text;
+    ignoreParse = true;
+    pickDate = date ? { date, time } : null;
+    updateChip();
+    if (text) { closeSheets(); $('addForm').requestSubmit(); return; }
+  }
+  closeSheets();
+});
+$('eDelete').addEventListener('click', () => {
+  const t = S.tasks.find(x => x.id === editId);
+  closeSheets();
+  if (!t) return;
+  commit({ op: 'delete', id: t.id });
+  toast(t.date ? 'Gelöscht (auch im Kalender)' : 'Gelöscht', 'Rückgängig', () => {
+    const b = Object.assign({}, t); delete b.inCal; upsert(b);
+  });
+});
+
+/* ---------- Einstellungen ---------- */
+$('settingsBtn').addEventListener('click', () => {
+  $('sUrl').value = S.url; $('sToken').value = S.token;
+  $('sInfo').textContent = S.url
+    ? (lastErr ? 'Nicht verbunden: ' + lastErr : 'Verbunden. Aufgaben mit Datum landen automatisch in deinem Google Kalender.')
+    : 'Ohne Verbindung bleibt die Liste nur auf diesem Gerät. Mit Verbindung ist sie auf Handy und Mac gleich, und Aufgaben mit Datum landen automatisch in deinem Google Kalender.';
+  openSheet('setSheet');
+});
+$('sCancel').addEventListener('click', closeSheets);
+$('sSave').addEventListener('click', () => {
+  const url = $('sUrl').value.trim(), token = $('sToken').value.trim();
+  const wasEmpty = !S.url;
+  S.url = url; S.token = token;
+  // Beim ersten Verbinden alles Lokale hochladen
+  if (url && wasEmpty) S.queue = S.tasks.map(t => ({ op: 'upsert', task: t }));
+  persist(); closeSheets(); flush();
+});
+
+/* ---------- Kleinkram ---------- */
+let toastTimer;
+function toast(text, btn, fn) {
+  $('toastText').textContent = text;
+  $('toastBtn').textContent = btn || '';
+  $('toastBtn').style.display = btn ? '' : 'none';
+  $('toastBtn').onclick = () => { $('toast').classList.remove('show'); fn && fn(); };
+  $('toast').classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $('toast').classList.remove('show'), 4000);
+}
+function vibrate() { try { navigator.vibrate && navigator.vibrate(15); } catch (e) {} }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSheets();
+  if (e.key === 'n' && !e.metaKey && !e.ctrlKey && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); $('newText').focus(); }
+});
+
+// Mitternacht: „Heute"/„Morgen" neu berechnen
+setInterval(render, 60000);
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+render();
+updateChip();
+setDot('');
+flush();
+</script>
+</body>
+</html>
