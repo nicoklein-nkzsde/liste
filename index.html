@@ -53,6 +53,7 @@ header { display: flex; align-items: flex-end; justify-content: space-between; g
 header h1 { margin: 0; font-size: 40px; font-weight: 900; letter-spacing: -.02em; line-height: 1; }
 header .sub { color: var(--muted); font-weight: 700; font-size: 15px; margin-top: 6px; }
 .head-right { display: flex; align-items: center; gap: 6px; }
+.dot:not(.ok):not(.wait):not(.err) { display: none; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); opacity: .6; }
 .dot.ok { background: var(--green); opacity: 1; }
 .dot.wait { background: var(--accent); opacity: 1; }
@@ -188,7 +189,7 @@ li.task.pop .check { animation: pop .3s ease; }
 <div class="sheet" id="editSheet" role="dialog" aria-modal="true">
   <h2 id="editTitle">Aufgabe</h2>
   <input type="text" id="eText" placeholder="Was ist zu tun?">
-  <label>Datum &amp; Uhrzeit → Google Kalender</label>
+  <label>Datum &amp; Uhrzeit</label>
   <div class="row2">
     <input type="date" id="eDate">
     <input type="time" id="eTime">
@@ -199,8 +200,11 @@ li.task.pop .check { animation: pop .3s ease; }
     <button type="button" data-q="7">In 1 Woche</button>
     <button type="button" data-q="none">Kein Datum</button>
   </div>
+  <button class="btn" id="eCal" style="display:none;width:100%;margin-top:14px">In Google Kalender eintragen</button>
+
   <div class="actions">
     <button class="btn danger" id="eDelete">Löschen</button>
+    
     <button class="btn" id="eCancel">Abbrechen</button>
     <button class="btn primary" id="eSave">Fertig</button>
   </div>
@@ -349,8 +353,27 @@ function upsert(t) {
 
 function addTask(text, date, time) {
   const now = Date.now();
-  upsert({ id: uid(), text, done: false, date: date || '', time: time || '', created: now, doneAt: 0 });
+  const t = { id: uid(), text, done: false, date: date || '', time: time || '', created: now, doneAt: 0 };
+  upsert(t);
+  if (t.date && !S.url) toast('Gespeichert', 'In Kalender', () => openCal(t), 7000);
 }
+
+// Ohne Verbindung: Google Kalender mit fertig ausgefülltem Termin öffnen
+function gcalUrl(t) {
+  const d = t.date.replace(/-/g, '');
+  let dates;
+  if (t.time) {
+    const [h, m] = t.time.split(':').map(Number);
+    const end = new Date(2000, 0, 1, h + 1, m);
+    const endDay = end.getDate() > 1 ? iso(addDays(fromIso(t.date), 1)).replace(/-/g, '') : d;
+    dates = d + 'T' + pad(h) + pad(m) + '00/' + endDay + 'T' + pad(end.getHours()) + pad(end.getMinutes()) + '00';
+  } else {
+    dates = d + '/' + iso(addDays(fromIso(t.date), 1)).replace(/-/g, '');
+  }
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(t.text) +
+    '&dates=' + dates + '&ctz=Europe/Berlin';
+}
+function openCal(t) { window.open(gcalUrl(t), '_blank'); }
 
 function toggle(id) {
   const t = S.tasks.find(x => x.id === id);
@@ -522,6 +545,7 @@ $('scrim').addEventListener('click', closeSheets);
 
 function markQuick() {
   const v = $('eDate').value;
+  $('eCal').style.display = (v && editId && !S.url) ? '' : 'none';
   document.querySelectorAll('#eQuick button').forEach(b => {
     const q = b.dataset.q;
     b.classList.toggle('on', q === 'none' ? !v : v === iso(addDays(today(), +q)));
@@ -573,6 +597,10 @@ $('eSave').addEventListener('click', () => {
   }
   closeSheets();
 });
+$('eCal').addEventListener('click', () => {
+  const text = $('eText').value.trim(), date = $('eDate').value;
+  if (text && date) openCal({ text, date, time: $('eTime').value });
+});
 $('eDelete').addEventListener('click', () => {
   const t = S.tasks.find(x => x.id === editId);
   closeSheets();
@@ -603,14 +631,14 @@ $('sSave').addEventListener('click', () => {
 
 /* ---------- Kleinkram ---------- */
 let toastTimer;
-function toast(text, btn, fn) {
+function toast(text, btn, fn, ms) {
   $('toastText').textContent = text;
   $('toastBtn').textContent = btn || '';
   $('toastBtn').style.display = btn ? '' : 'none';
   $('toastBtn').onclick = () => { $('toast').classList.remove('show'); fn && fn(); };
   $('toast').classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => $('toast').classList.remove('show'), 4000);
+  toastTimer = setTimeout(() => $('toast').classList.remove('show'), ms || 4000);
 }
 function vibrate() { try { navigator.vibrate && navigator.vibrate(15); } catch (e) {} }
 
